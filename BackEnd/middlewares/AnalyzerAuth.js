@@ -3,22 +3,22 @@ const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
 exports.AuthMiddleware = (req, res, next) => {
-  const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
+  const authHeader = req.headers.authorization;
+  const tokenFromHeader = authHeader && authHeader.startsWith("Bearer ") 
+    ? authHeader.split(" ")[1] 
+    : null;
+  
+  const token = req.cookies.token || tokenFromHeader;
 
   if (!token) {
-    return res.status(401).json({ message: "Unauthorized access" });
+    return res.status(401).json({ message: "Unauthorized access - No token provided" });
   }
-  try {
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-      if (err) {
-        return res.status(400).json({ message: "Invalid token or expired" });
-      }
-        req.user = decoded;
-        return next(); 
-    });
-  } catch (error) {
-    console.error("Error in AuthMiddleware:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ message: "Invalid or expired token" });
+    }
+    req.user = decoded;
+    next();
+  });
 };
- 

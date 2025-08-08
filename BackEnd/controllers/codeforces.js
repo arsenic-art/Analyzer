@@ -1,92 +1,71 @@
 const fetch = require("cross-fetch");
+const NodeCache = require("node-cache");
+const rateLimit = require("express-rate-limit");
+const cache = new NodeCache({ stdTTL: 300 });  
+
+const codeforcesLimiter = rateLimit({
+  windowMs: 60 * 1000,  
+  max: 30,  
+  message: { error: "Too many requests, please try again later." }
+});
+
+exports.codeforcesLimiter = codeforcesLimiter;
 
 exports.codeforces = async (req, res) => {
-  const handle = req.params.id;
+  const handle = req.params.id?.trim();
+  if (!handle) {
+    return res.status(400).json({ error: "Codeforces handle is required" });
+  }
+  const cached = cache.get(handle);
+  if (cached) return res.json(cached);
 
   try {
-    // Helper function to fetch and validate JSON response
     const fetchJson = async (url, platformName) => {
       const response = await fetch(url);
       const contentType = response.headers.get('content-type');
-
       if (!response.ok) {
-        let errorMessage = `Failed to fetch ${platformName} data from ${url}. Status: ${response.status} ${response.statusText}.`;
-        if (contentType && contentType.includes('application/json')) {
-          const errorData = await response.json();
-          errorMessage += ` Error: ${errorData.comment || JSON.stringify(errorData)}`;
-        } else {
-          const errorText = await response.text();
-          errorMessage += ` Response: ${errorText.substring(0, 500)}... (Not JSON)`; // Limit length for logs
-        }
-        throw new Error(errorMessage);
+        throw new Error(`${platformName} API error: ${response.status} ${response.statusText}`);
       }
-
-      if (contentType && contentType.includes('application/json')) { 
-        return await response.json();
-      } else {
-        const errorText = await response.text();
-        throw new Error(`Invalid response from ${platformName} API (${url}). Expected JSON, got: ${errorText.substring(0, 500)}...`);
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`${platformName} API did not return JSON`);
       }
+      return await response.json();
     };
 
-    // Fetch user info
-    const userInfoData = await fetchJson(`https://codeforces.com/api/user.info?handles=${handle}`, 'Codeforces User Info');
+    const [userInfoData, ratingData, submissionsData] = await Promise.all([
+      fetchJson(`https://codeforces.com/api/user.info?handles=${handle}`, 'Codeforces User Info'),
+      fetchJson(`https://codeforces.com/api/user.rating?handle=${handle}`, 'Codeforces Rating History'),
+      fetchJson(`https://codeforces.com/api/user.status?handle=${handle}&from=1&count=10`, 'Codeforces Recent Submissions')
+    ]);
+
     if (userInfoData.status !== "OK") {
-      return res.status(404).json({ error: userInfoData.comment || "User not found on Codeforces" });
+      return res.status(404).json({ error: "User not found on Codeforces" });
     }
+
     const user = userInfoData.result[0];
-
-    // Fetch user rating history
-    const ratingData = await fetchJson(`https://codeforces.com/api/user.rating?handle=${handle}`, 'Codeforces Rating History');
     const ratingHistory = ratingData.status === "OK" ? ratingData.result : [];
-
-    // Fetch recent submissions
-    const submissionsData = await fetchJson(`https://codeforces.com/api/user.status?handle=${handle}&from=1&count=10`, 'Codeforces Recent Submissions');
     const recentSubmissions = submissionsData.status === "OK" ? submissionsData.result : [];
 
-    // Fetch all submissions to calculate solved problems
-    // Note: Fetching all submissions can be slow for users with many submissions.
-    // Consider pagination or alternative methods if performance is an issue.
-    const allSubmissionsData = await fetchJson(`https://codeforces.com/api/user.status?handle=${handle}`, 'Codeforces All Submissions');
-
     let solvedProblemsCount = 0;
-    if (allSubmissionsData.status === "OK") {
-      const solvedSet = new Set();
-      for (const sub of allSubmissionsData.result) {
-        if (sub.verdict === "OK") {
-          const problemId = `${sub.problem.contestId}-${sub.problem.index}`;
-          solvedSet.add(problemId);
+    try {
+      const allSubmissionsData = await fetchJson(
+        `https://codeforces.com/api/user.status?handle=${handle}`,
+        'Codeforces All Submissions'
+      );
+      if (allSubmissionsData.status === "OK") {
+        const solvedSet = new Set();
+        for (const sub of allSubmissionsData.result) {
+          if (sub.verdict === "OK") {
+            solvedSet.add(`${sub.problem.contestId}-${sub.problem.index}`);
+          }
         }
+        solvedProblemsCount = solvedSet.size;
       }
-      solvedProblemsCount = solvedSet.size;
+    } catch (err) {
+      console.warn(`Failed to fetch all submissions for ${handle}:`, err.message);
     }
 
-    // Format rating history
-    const formattedRating = ratingHistory.map((contest) => ({
-      contestName: contest.contestName,
-      contestId: contest.contestId,
-      rank: contest.rank,
-      oldRating: contest.oldRating,
-      newRating: contest.newRating,
-      ratingChange: contest.newRating - contest.oldRating,
-      contestUrl: `https://codeforces.com/contest/${contest.contestId}`,
-    }));
-
-    // Format recent submissions
-    const formattedSubmissions = recentSubmissions.map((sub) => ({
-      problemName: sub.problem.name,
-      contestId: sub.contestId,
-      index: sub.problem.index,
-      language: sub.programmingLanguage,
-      verdict: sub.verdict,
-      timeConsumedMs: sub.timeConsumedMillis,
-      memoryConsumedBytes: sub.memoryConsumedBytes,
-      submissionTime: sub.creationTimeSeconds,
-      submissionUrl: `https://codeforces.com/contest/${sub.contestId}/submission/${sub.id}`,
-    }));
-
-    // Send formatted response
-    return res.json({
+    const responseData = {
       username: user.handle,
       profile: {
         avatar: user.avatar || null,
@@ -99,12 +78,32 @@ exports.codeforces = async (req, res) => {
         city: user.city || null,
         solvedCount: solvedProblemsCount,
       },
-      ratingHistory: formattedRating,
-      recentSubmissions: formattedSubmissions,
-    });
+      ratingHistory: ratingHistory.map(contest => ({
+        contestName: contest.contestName,
+        contestId: contest.contestId,
+        rank: contest.rank,
+        oldRating: contest.oldRating,
+        newRating: contest.newRating,
+        ratingChange: contest.newRating - contest.oldRating,
+        contestUrl: `https://codeforces.com/contest/${contest.contestId}`,
+      })),
+      recentSubmissions: recentSubmissions.map(sub => ({
+        problemName: sub.problem.name,
+        contestId: sub.contestId,
+        index: sub.problem.index,
+        language: sub.programmingLanguage,
+        verdict: sub.verdict,
+        timeConsumedMs: sub.timeConsumedMillis,
+        memoryConsumedBytes: sub.memoryConsumedBytes,
+        submissionTime: sub.creationTimeSeconds,
+        submissionUrl: `https://codeforces.com/contest/${sub.contestId}/submission/${sub.id}`,
+      })),
+    };
+
+    cache.set(handle, responseData);
+    return res.json(responseData);
   } catch (err) {
-    console.error("Codeforces API Error:", err);
-    // Send a more informative error to the frontend
-    res.status(500).json({ error: `Codeforces API Error: ${err.message}` });
+    console.error(`Codeforces API Error for ${handle}:`, err.message || err);
+    res.status(502).json({ error: "Failed to fetch Codeforces user data" });
   }
 };

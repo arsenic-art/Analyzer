@@ -1,5 +1,8 @@
 const fetch = require("cross-fetch");
 
+const cache = {};
+const CACHE_TTL = 5 * 60 * 1000;  
+
 const combinedQuery = `
   query getUserData($username: String!) {
     userContestRankingHistory(username: $username) {
@@ -49,6 +52,7 @@ const combinedQuery = `
       titleSlug
       timestamp
       statusDisplay
+      lang
     }
   }
 `;
@@ -87,95 +91,100 @@ const formatRecentSubmissions = (submissions) => {
     titleSlug: sub.titleSlug,
     timestamp: sub.timestamp,
     status: sub.statusDisplay,
-    language: sub.lang,
+    language: sub.lang || null,
   }));
 };
 
-exports.leetcode = (req, res) => {
+exports.leetcode = async (req, res) => {
   const user = req.params.id;
 
-  fetch("https://leetcode.com/graphql", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Referer: "https://leetcode.com",
-    },
-    body: JSON.stringify({
-      query: combinedQuery,
-      variables: { username: user },
-      operationName: "getUserData",
-    }),
-  })
-    .then((result) => result.json())
-    .then((data) => {
-      if (data.errors) {
-        const msg = data.errors[0]?.message || "GraphQL Error";
-        return res.status(400).json({ error: msg });
-      }
+  if (cache[user] && Date.now() - cache[user].timestamp < CACHE_TTL) {
+    return res.json(cache[user].data);
+  }
 
-      const {
-        userContestRankingHistory,
-        userContestRanking,
-        matchedUser,
-        allQuestionsCount,
-        recentSubmissionList,
-      } = data.data;
-
-      // Contest History with rounded ratings
-      const contestHistory = formatContestHistory(userContestRankingHistory || []);
-
-      // Current Contest Ranking with rounded rating and topPercentage
-      const currentContestRankingRaw = userContestRanking || {};
-      const currentContestRanking = {
-        rating: Math.round(currentContestRankingRaw.rating ?? 0),
-        globalRanking: currentContestRankingRaw.globalRanking ?? null,
-        totalParticipants: currentContestRankingRaw.totalParticipants ?? null,
-        topPercentage: Math.round(currentContestRankingRaw.topPercentage ?? 0),
-        attendedContests: contestHistory.length,
-      };
-
-      // User Profile Info
-      const userProfile = matchedUser?.profile || {};
-
-      // Submission Stats
-      const acSubmissionNum = matchedUser?.submitStats?.acSubmissionNum || [];
-      const totalSubmissionNum = matchedUser?.submitStats?.totalSubmissionNum || [];
-
-      const formattedAcSubmissions = formatSubmissionStats(acSubmissionNum);
-      const formattedTotalSubmissions = formatSubmissionStats(totalSubmissionNum);
-
-      // All Questions Count (global statistics)
-      const formattedAllQuestionsCount = {};
-      (allQuestionsCount || []).forEach(({ difficulty, count }) => {
-        formattedAllQuestionsCount[difficulty.toLowerCase()] = count;
-      });
-
-      // Recent Submissions
-      const formattedRecentSubmissions = formatRecentSubmissions(recentSubmissionList || []);
-
-      return res.json({
-        username: user,
-        profile: {
-          ranking: userProfile.ranking || 0,
-          avatar: userProfile.userAvatar || null,
-        },
-        contestRanking: currentContestRanking,
-        problemStats: {
-          acceptedSubmissions: formattedAcSubmissions,
-          totalSubmissions: formattedTotalSubmissions,
-        },
-        globalProblemCounts: {
-          total: formattedAllQuestionsCount.all || 0,
-          easy: formattedAllQuestionsCount.easy || 0,
-          medium: formattedAllQuestionsCount.medium || 0,
-          hard: formattedAllQuestionsCount.hard || 0,
-        },
-        recentSubmissions: formattedRecentSubmissions,
-        contestHistory: contestHistory,
-      });
-    })
-    .catch((err) => {
-      console.error("Error fetching from LeetCode:", err);
-      res.status(500).json({ error: "Something went wrong" });
+  try {
+    const result = await fetch("https://leetcode.com/graphql", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Referer: "https://leetcode.com",
+      },
+      body: JSON.stringify({
+        query: combinedQuery,
+        variables: { username: user },
+        operationName: "getUserData",
+      }),
     });
+
+    const data = await result.json();
+
+    if (data.errors) {
+      const msg = data.errors[0]?.message || "GraphQL Error";
+      return res.status(400).json({ error: msg });
+    }
+
+    const {
+      userContestRankingHistory,
+      userContestRanking,
+      matchedUser,
+      allQuestionsCount,
+      recentSubmissionList,
+    } = data.data;
+
+    const contestHistory = formatContestHistory(userContestRankingHistory || []);
+
+    const currentContestRankingRaw = userContestRanking || {};
+    const currentContestRanking = {
+      rating: Math.round(currentContestRankingRaw.rating ?? 0),
+      globalRanking: currentContestRankingRaw.globalRanking ?? null,
+      totalParticipants: currentContestRankingRaw.totalParticipants ?? null,
+      topPercentage: Math.round(currentContestRankingRaw.topPercentage ?? 0),
+      attendedContests: contestHistory.length,
+    };
+
+    const userProfile = matchedUser?.profile || {};
+    const acSubmissionNum = matchedUser?.submitStats?.acSubmissionNum || [];
+    const totalSubmissionNum = matchedUser?.submitStats?.totalSubmissionNum || [];
+
+    const formattedAcSubmissions = formatSubmissionStats(acSubmissionNum);
+    const formattedTotalSubmissions = formatSubmissionStats(totalSubmissionNum);
+
+    const formattedAllQuestionsCount = {};
+    (allQuestionsCount || []).forEach(({ difficulty, count }) => {
+      formattedAllQuestionsCount[difficulty.toLowerCase()] = count;
+    });
+
+    const formattedRecentSubmissions = formatRecentSubmissions(recentSubmissionList || []);
+
+    const responsePayload = {
+      username: user,
+      profile: {
+        ranking: userProfile.ranking || 0,
+        avatar: userProfile.userAvatar || null,
+      },
+      contestRanking: currentContestRanking,
+      problemStats: {
+        acceptedSubmissions: formattedAcSubmissions,
+        totalSubmissions: formattedTotalSubmissions,
+      },
+      globalProblemCounts: {
+        total: formattedAllQuestionsCount.all || 0,
+        easy: formattedAllQuestionsCount.easy || 0,
+        medium: formattedAllQuestionsCount.medium || 0,
+        hard: formattedAllQuestionsCount.hard || 0,
+      },
+      recentSubmissions: formattedRecentSubmissions,
+      contestHistory: contestHistory,
+    };
+
+    cache[user] = {
+      data: responsePayload,
+      timestamp: Date.now(),
+    };
+
+    return res.json(responsePayload);
+  } catch (err) {
+    console.error("Error fetching from LeetCode:", err);
+    res.status(500).json({ error: "Something went wrong" });
+  }
 };
