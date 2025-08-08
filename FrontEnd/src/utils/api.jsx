@@ -1,46 +1,24 @@
+
 export const fetchProfile = async (platform, username) => {
-  console.log(`Fetching ${platform} for ${username}...`);
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (username === "nonexistent") {
-        reject(new Error(`User '${username}' not found on ${platform}.`));
-        return;
+  try {
+    const response = await fetch(
+      `http://localhost:3000/${platform}/${username}`
+    );
+    if (!response.ok) {
+      let errorMessage = `Failed to fetch ${platform} profile for ${username}.`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (parseError) {
       }
-
-      const mockData = {
-        leetcode: {
-          profile: { ranking: Math.floor(Math.random() * 100000) + 1 },
-          contestRanking: { rating: Math.floor(Math.random() * 1000) + 1500 },
-          problemStats: {
-            acceptedSubmissions: {
-              all: { count: Math.floor(Math.random() * 800) + 50 },
-              easy: { count: Math.floor(Math.random() * 300) },
-              medium: { count: Math.floor(Math.random() * 400) },
-              hard: { count: Math.floor(Math.random() * 100) },
-            },
-          },
-        },
-        codeforces: {
-          profile: {
-            rating: Math.floor(Math.random() * 1200) + 1200,
-            maxRating: Math.floor(Math.random() * 500) + 2400,
-            solvedCount: Math.floor(Math.random() * 1000) + 200,
-          },
-          ratingHistory: Array.from({ length: Math.floor(Math.random() * 50) + 10 }, () => ({
-            newRating: Math.floor(Math.random() * 300) + 1400,
-          })),
-        },
-        atcoder: {
-          userRating: Math.floor(Math.random() * 1000) + 800,
-          userRank: Math.floor(Math.random() * 20000) + 1,
-          userContestCount: Math.floor(Math.random() * 100) + 5,
-          contests: Array.from({ length: Math.floor(Math.random() * 20) + 5 }, () => ({
-            performance: Math.floor(Math.random() * 800) + 1000,
-          })),
-        },
-      };
-
-      resolve(mockData[platform]);
-    }, 1000 + Math.random() * 500);  
-  });
+      throw new Error(errorMessage);
+    }
+    const data = await response.json();
+    if (!data || Object.keys(data).length === 0) {
+      throw new Error(`No data found for ${username} on ${platform}.`);
+    }
+    return data;
+  } catch (err) {
+    throw err;
+  }
 };

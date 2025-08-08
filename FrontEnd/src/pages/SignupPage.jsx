@@ -35,7 +35,6 @@ const SignupPage = ({
     </div>
 
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* This block will display the API error message */}
       {errors.apiError && (
         <div className="flex items-center space-x-2 text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />

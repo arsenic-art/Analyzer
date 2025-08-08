@@ -5,7 +5,6 @@ import { AlertTriangle, X, CheckCircle } from "lucide-react";
 const TermsPopup = ({ onAccept, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Dim background, for dramatic effect */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -15,7 +14,6 @@ const TermsPopup = ({ onAccept, onClose }) => {
         onClick={onClose}
       />
 
-      {/* The legendary popup */}
       <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -51,7 +49,7 @@ const TermsPopup = ({ onAccept, onClose }) => {
                   that even your grandma would approve of, so should you.
                   <br />
                   <br />
-                  BTW I just wanted to flex some fancy framer-motion moves 💃.
+                  I just wanted to flex some fancy framer-motion moves 💃.
                   <br />
                   <br />
                   Also threw in some backend sorcery so it actually stores stuff

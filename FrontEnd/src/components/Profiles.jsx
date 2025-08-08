@@ -72,7 +72,6 @@ export default function CompetitiveProfiles() {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
         } catch (parseError) {
-          // Fallback if response is not JSON
         }
         throw new Error(errorMessage);
       }
@@ -89,7 +88,7 @@ export default function CompetitiveProfiles() {
   const handleFetchProfiles = async () => {
     setLoading(true);
     setError("");
-    setProfiles({}); // Clear previous profiles
+    setProfiles({}); 
 
     const activeUsernames = Object.entries(usernames).filter(([_, username]) =>
       username.trim()
@@ -107,7 +106,7 @@ export default function CompetitiveProfiles() {
           fetchProfile(platform, username.trim()).then((data) => ({
             platform,
             data,
-            username: username.trim(), // Pass username for display
+            username: username.trim(), 
           }))
         )
       );
@@ -136,14 +135,12 @@ export default function CompetitiveProfiles() {
     setLoading(false);
   };
 
-  // Load saved profiles from local storage on component mount
   const [savedProfiles, setSavedProfiles] = useState([]);
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("savedProfiles")) || [];
     setSavedProfiles(stored);
   }, []);
   const handleSaveUsersButtonClick = () => {
-    // Check if all username fields are empty
     const allUsernamesEmpty = Object.values(usernames).every(
       (username) => username.trim() === ""
     );
@@ -155,7 +152,6 @@ export default function CompetitiveProfiles() {
       return;
     }
 
-    // Check for duplicate entry before saving
     const existing = JSON.parse(localStorage.getItem("savedProfiles")) || [];
     const isDuplicate = existing.some(
       (savedProfile) =>
@@ -172,7 +168,7 @@ export default function CompetitiveProfiles() {
     const updated = [...existing, usernames];
     localStorage.setItem("savedProfiles", JSON.stringify(updated));
     setSavedProfiles(updated);
-    setError(""); // Clear any previous error on successful save
+    setError("");
   };
 
   const handleDeleteProfile = (indexToDelete) => {
@@ -185,7 +181,7 @@ export default function CompetitiveProfiles() {
 
   const handleProfileRowClick = (profile) => {
     setUsernames(profile);
-    setError(""); // Clear error when loading a saved profile
+    setError("");
   };
 
   return (
@@ -279,7 +275,6 @@ export default function CompetitiveProfiles() {
                         <th className="py-3 px-4 text-left">Codeforces</th>
                         <th className="py-3 px-4 text-left">AtCoder</th>
                         <th className="py-3 px-4 text-left">Actions</th>{" "}
-                        {/* New header */}
                       </tr>
                     </thead>
                     <tbody>
@@ -309,7 +304,7 @@ export default function CompetitiveProfiles() {
                           <td className="py-3 px-4">
                             <button
                               onClick={(e) => {
-                                e.stopPropagation(); // Prevent row click when deleting
+                                e.stopPropagation(); 
                                 handleDeleteProfile(idx);
                               }}
                               className="p-2 rounded-full bg-red-600/70 hover:bg-red-700 transition-colors duration-200 text-white"
@@ -345,7 +340,6 @@ export default function CompetitiveProfiles() {
 }
 
 function ProfileSection({ platform, data }) {
-  // Check if there's an error for this specific platform's data
   if (data.error) {
     return (
       <div
@@ -376,7 +370,6 @@ function ProfileSection({ platform, data }) {
     >
       <div className="flex items-center gap-4 mb-8">
         <div className={`${platform.color} rounded-2xl p-1 shadow-lg`}>
-          {/* Use data.profile.avatar if available, otherwise a placeholder */}
           <img
             src={
               data.profile?.avatar ||
@@ -406,7 +399,6 @@ function ProfileSection({ platform, data }) {
         </div>
       </div>
 
-      {/* Platform-specific content */}
       {platform.id === "leetcode" && <LeetCodeProfile data={data} />}
       {platform.id === "codeforces" && <CodeforcesProfile data={data} />}
       {platform.id === "atcoder" && <AtCoderProfile data={data} />}
@@ -424,7 +416,6 @@ function LeetCodeProfile({ data }) {
     globalProblemCounts,
   } = data;
   console.log("leety : ", data);
-  // Ensure globalProblemCounts is available for percentages
   const totalEasyProblems = globalProblemCounts?.easy || 1;
   const totalMediumProblems = globalProblemCounts?.medium || 1;
   const totalHardProblems = globalProblemCounts?.hard || 1;
@@ -432,9 +423,7 @@ function LeetCodeProfile({ data }) {
   return (
     <div className="p-6 bg-slate-900/50 rounded-xl">
       {" "}
-      {/* Adjusted background for nested component */}
       <div className="max-w-full mx-auto space-y-8">
-        {/* Header Section - adjusted for nested display */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
             LeetCode Stats
@@ -749,7 +738,6 @@ function getRankColor(rank) {
 function CodeforcesProfile({ data }) {
   if (!data) return null;
   console.log("cf : ", data);
-  // Extract data with fallbacks
   const handle = data.username || data.handle || "N/A";
   const profile = {
     avatar:
@@ -769,7 +757,6 @@ function CodeforcesProfile({ data }) {
   const ratingHistory = data.ratingHistory || [];
   const recentSubmissions = data.recentSubmissions || [];
 
-  // Calculate additional stats
   const totalContests = ratingHistory.length;
   const positiveChanges = ratingHistory.filter(
     (c) => c.ratingChange > 0
@@ -789,7 +776,6 @@ function CodeforcesProfile({ data }) {
       {" "}
       {/* Adjusted background for nested component */}
       <div className="max-w-full mx-auto space-y-6">
-        {/* Animated Header */}
         <div className="text-center mb-8 space-y-4">
           <div className="relative">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent mb-2 ">
@@ -802,7 +788,6 @@ function CodeforcesProfile({ data }) {
           </p>
         </div>
 
-        {/* Enhanced Profile Header */}
         <div className="relative bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 sm:p-8 shadow-2xl">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5 rounded-2xl"></div>
 
@@ -843,7 +828,6 @@ function CodeforcesProfile({ data }) {
                 </div>
               </div>
 
-              {/* Enhanced Stats Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-blue-500/15 to-blue-600/10 border border-blue-500/30 rounded-xl p-4 hover:from-blue-500/20 hover:to-blue-600/15 transition-all duration-300 group">
                   <div className="flex items-center gap-3 mb-3">
@@ -910,7 +894,6 @@ function CodeforcesProfile({ data }) {
                 </div>
               </div>
 
-              {/* Location and Organization */}
               <div className="flex flex-col sm:flex-row gap-4 text-slate-300">
                 {(profile.city || profile.country) && (
                   <div className="flex items-center gap-2 justify-center lg:justify-start">
@@ -1073,7 +1056,7 @@ function AtCoderProfile({ data }) {
 
   const {
     username,
-    profile, // This might contain avatar or other general profile info
+    profile, 
     currentRank,
     userRank,
     userRating,
@@ -1081,7 +1064,6 @@ function AtCoderProfile({ data }) {
     contests = [],
   } = data;
   console.log("data : ", data);
-  // Calculate stats from contests
   const totalContests = contests.length;
   const bestPerformance =
     totalContests > 0 ? Math.max(...contests.map((c) => c.performance)) : 0;
@@ -1094,7 +1076,6 @@ function AtCoderProfile({ data }) {
         )
       : 0;
 
-  // Calculate rating change trend (last 5 contests)
   const recentContests = contests.slice(-5);
   const ratingTrend =
     recentContests.length >= 2
@@ -1104,14 +1085,14 @@ function AtCoderProfile({ data }) {
 
   // Get rank color based on rating
   const getAtCoderRankColor = (rating) => {
-    if (rating >= 2800) return "red"; // Red
-    if (rating >= 2400) return "orange"; // Orange
-    if (rating >= 2000) return "yellow"; // Yellow
-    if (rating >= 1600) return "blue"; // Blue
-    if (rating >= 1200) return "cyan"; // Cyan
-    if (rating >= 800) return "green"; // Green
-    if (rating >= 400) return "amber"; // Brown
-    return "gray"; // Gray (for unrated/low ratings)
+    if (rating >= 2800) return "red"; 
+    if (rating >= 2400) return "orange"; 
+    if (rating >= 2000) return "yellow"; 
+    if (rating >= 1600) return "blue"; 
+    if (rating >= 1200) return "cyan";
+    if (rating >= 800) return "green"; 
+    if (rating >= 400) return "amber"; 
+    return "gray";
   };
 
   const rankColor = getAtCoderRankColor(userRating);
@@ -1119,9 +1100,7 @@ function AtCoderProfile({ data }) {
   return (
     <div className="p-6 bg-slate-900/50 rounded-xl">
       {" "}
-      {/* Adjusted background for nested component */}
       <div className="max-w-full mx-auto space-y-8">
-        {/* Header Section */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-2">
             AtCoder Stats
@@ -1238,7 +1217,6 @@ function AtCoderProfile({ data }) {
           </div>
         </div>
 
-        {/* Performance Statistics */}
         {contests.length > 0 && (
           <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-8">
             <div className="flex items-center gap-3 mb-6">
@@ -1268,7 +1246,7 @@ function AtCoderProfile({ data }) {
                     className="h-3 rounded-full bg-gradient-to-r from-green-400 to-green-500 transition-all duration-500 ease-out"
                     style={{
                       width: `${Math.min(
-                        (bestPerformance / 2000) * 100, // Assuming max performance around 2000 for visual scale
+                        (bestPerformance / 2000) * 100,
                         100
                       )}%`,
                     }}
@@ -1315,8 +1293,8 @@ function AtCoderProfile({ data }) {
                     className="h-3 rounded-full bg-gradient-to-r from-red-400 to-red-500 transition-all duration-500 ease-out"
                     style={{
                       width: `${Math.max(
-                        (worstPerformance / 2000) * 100, // Assuming max performance around 2000 for visual scale
-                        10 // Minimum width for visibility
+                        (worstPerformance / 2000) * 100, 
+                        10 
                       )}%`,
                     }}
                   />
@@ -1327,7 +1305,6 @@ function AtCoderProfile({ data }) {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Contests */}
           {contests && contests.length > 0 && (
             <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-8">
               <div className="flex items-center gap-3 mb-6">
@@ -1449,7 +1426,6 @@ function AtCoderProfile({ data }) {
             </div>
           )}
 
-          {/* Rating History Chart (Placeholder for actual chart) */}
           <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-8">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-indigo-500/20 rounded-lg">

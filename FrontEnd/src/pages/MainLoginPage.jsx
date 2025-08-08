@@ -63,7 +63,6 @@ const App = () => {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
-        // Clear errors when user starts typing
         if (errors[name] || errors.apiError) setErrors({});
     };
 
@@ -122,26 +121,19 @@ const App = () => {
             const result = await response.json();
 
             if (!response.ok) {
-                // --- THIS IS THE FAILURE PATH ---
-                // Set the error message from the API and stop execution.
-                // The user will stay on the current page.
                 setErrors({ apiError: result.message || 'An unexpected error occurred.' });
-                setIsLoading(false); // Ensure loading stops on failure
+                setIsLoading(false); 
                 return;
             }
             
-            // --- THIS IS THE SUCCESS PATH ---
             if (result.token) {
                 localStorage.setItem('token', result.token);
                 setAuthToken(result.token);
-                // The useEffect will handle setting the page to 'success'
-                // and navigating to the analytics page.
             }
             
         } catch (error) {
             setErrors({ apiError: 'Could not connect to the server. Please try again.' });
         } finally {
-            // Set loading to false in all cases (success, handled API error, or network catch error)
             setIsLoading(false);
         }
     };
@@ -154,7 +146,6 @@ const App = () => {
             email: "", password: "", confirmPassword: "",
             firstName: "", lastName: "",
         });
-        // Optional: navigate back to the login page if you have routes set up
         navigate('/'); 
     };
 
