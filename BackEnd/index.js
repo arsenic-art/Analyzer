@@ -15,7 +15,24 @@ const { gfg } = require("./controllers/gfg");
 
 const app = express();
 app.use(cookieParser());
-app.use(cors({ origin: "*" }));
+const allowedOrigins = [
+  "https://analyzer-piyushsharma.vercel.app",
+  /^https:\/\/.*\.vercel\.app$/ // match any Vercel deployment URL
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.some(o => 
+      (typeof o === "string" && o === origin) ||
+      (o instanceof RegExp && o.test(origin))
+    )) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  }
+}));
+
 app.use(express.json());
 const generateToken = (email) => {
   return jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "7d" });
