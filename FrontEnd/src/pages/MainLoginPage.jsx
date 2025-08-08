@@ -96,8 +96,8 @@ const App = () => {
         setErrors({});
 
         const url = currentPage === 'signup' 
-            ? 'http://localhost:3000/register' 
-            : 'http://localhost:3000/login';
+            ? 'https://analyzer-3.onrender.com/register' 
+            : 'https://analyzer-3.onrender.com/login';
 
         const body = currentPage === 'signup'
             ? {

@@ -82,7 +82,7 @@ const Analytics = () => {
       return;
     }
 
-    const res = await fetch("http://localhost:3000/setChats", {
+    const res = await fetch("https://analyzer-3.onrender.com/setChats", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -158,7 +158,7 @@ const Analytics = () => {
     try {
       const promises = selectedPlatforms.map((platformId) => {
         const username = usernames[platformId];
-        return fetch(`http://localhost:3000/${platformId}/${username}`)
+        return fetch(`https://analyzer-3.onrender.com/${platformId}/${username}`)
           .then((response) => {
             if (!response.ok) {
               throw new Error(

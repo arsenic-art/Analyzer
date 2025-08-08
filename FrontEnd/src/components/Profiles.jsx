@@ -64,7 +64,7 @@ export default function CompetitiveProfiles() {
   const fetchProfile = async (platform, username) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/${platform}/${username}`
+        `https://analyzer-3.onrender.com/${platform}/${username}`
       );
       if (!response.ok) {
         let errorMessage = `Failed to fetch ${platform} profile`;
