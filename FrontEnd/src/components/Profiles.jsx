@@ -415,7 +415,6 @@ function LeetCodeProfile({ data }) {
     contestHistory,
     globalProblemCounts,
   } = data;
-  console.log("leety : ", data);
   const totalEasyProblems = globalProblemCounts?.easy || 1;
   const totalMediumProblems = globalProblemCounts?.medium || 1;
   const totalHardProblems = globalProblemCounts?.hard || 1;
@@ -737,7 +736,6 @@ function getRankColor(rank) {
 
 function CodeforcesProfile({ data }) {
   if (!data) return null;
-  console.log("cf : ", data);
   const handle = data.username || data.handle || "N/A";
   const profile = {
     avatar:
@@ -1063,7 +1061,6 @@ function AtCoderProfile({ data }) {
     userContestCount,
     contests = [],
   } = data;
-  console.log("data : ", data);
   const totalContests = contests.length;
   const bestPerformance =
     totalContests > 0 ? Math.max(...contests.map((c) => c.performance)) : 0;
