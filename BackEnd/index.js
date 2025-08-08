@@ -15,12 +15,7 @@ const { gfg } = require("./controllers/gfg");
 
 const app = express();
 app.use(cookieParser());
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173", 
-    credentials: true,
-  })
-);
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 const generateToken = (email) => {
   return jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "7d" });
