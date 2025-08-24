@@ -56,7 +56,7 @@ export default function CompetitiveProfiles() {
   const [profiles, setProfiles] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
+  const API = import.meta.env.VITE_API_URL;
   const handleInputChange = (platform, value) => {
     setUsernames((prev) => ({ ...prev, [platform]: value }));
   };
@@ -64,7 +64,7 @@ export default function CompetitiveProfiles() {
   const fetchProfile = async (platform, username) => {
     try {
       const response = await fetch(
-        `https://analyzer-3.onrender.com/${platform}/${username}`
+        `${API}/${platform}/${username}`
       );
       if (!response.ok) {
         let errorMessage = `Failed to fetch ${platform} profile`;

@@ -1,8 +1,10 @@
 
 export const fetchProfile = async (platform, username) => {
+  const API = import.meta.env.VITE_API_URL;
+
   try {
     const response = await fetch(
-      `https://analyzer-3.onrender.com/${platform}/${username}`
+      `${API}/${platform}/${username}`
     );
     if (!response.ok) {
       let errorMessage = `Failed to fetch ${platform} profile for ${username}.`;
