@@ -18,12 +18,20 @@ app.use(cookieParser());
 
 const allowedOrigins = [
   "https://analyzer-piyushsharma.vercel.app",
-  /^https:\/\/.*\.vercel\.app$/ // match any Vercel deployment URL
+  /^https:\/\/.*\.vercel\.app$/  
 ];
 
 app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true, // zaroori hai agar tum cookies (res.cookie) use kar rahe ho
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.some(o => 
+      (typeof o === "string" && o === origin) ||
+      (o instanceof RegExp && o.test(origin))
+    )) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  }
 }));
 
 
