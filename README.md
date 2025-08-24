@@ -3,6 +3,8 @@
 **Analyzer** is a full-stack web application that aggregates and analyzes user data from various competitive programming platforms  
 (**LeetCode**, **Codeforces**, **AtCoder**, **GeeksforGeeks**) and provides **AI-powered chat capabilities** for personalized insights.  
 
+🔗 **Live Demo:** [Analyzer App](https://arsenic-cp-analyzer.vercel.app/)  
+
 ---
 
 ## 🚀 Features  
@@ -39,5 +41,3 @@
   - cookie-parser  
   - ReactMarkdown  
   - Framer Motion  
-
----
