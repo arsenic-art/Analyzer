@@ -15,23 +15,17 @@ const { gfg } = require("./controllers/gfg");
 
 const app = express();
 app.use(cookieParser());
+
 const allowedOrigins = [
   "https://analyzer-piyushsharma.vercel.app",
   /^https:\/\/.*\.vercel\.app$/ // match any Vercel deployment URL
 ];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.some(o => 
-      (typeof o === "string" && o === origin) ||
-      (o instanceof RegExp && o.test(origin))
-    )) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  }
+  origin: "http://localhost:5173",
+  credentials: true, // zaroori hai agar tum cookies (res.cookie) use kar rahe ho
 }));
+
 
 app.use(express.json());
 const generateToken = (email) => {
@@ -120,6 +114,10 @@ app.post("/logout", (req, res) => {
 });
 
 app.post("/setChats", AuthMiddleware, getChats);
+
+app.post("/pastChats", AuthMiddleware, require("./controllers/pastChats").previousChats)
+
+app.delete("/clearChats", AuthMiddleware, require("./controllers/clearChats").clearChats);
 
 const PORT = process.env.PORT || 3000;
 connectDB().then(() => {

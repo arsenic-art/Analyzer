@@ -3,6 +3,7 @@ import { Mail, Lock, User, ArrowRight, AlertCircle } from "lucide-react";
 
 import InputField from "../pages/InputField";
 import ActionButton from "../pages/ActionButton";
+import logo from '../assets/AnalyzerLogo.png';
 
 const SignupPage = ({
   formData,
@@ -22,8 +23,8 @@ const SignupPage = ({
   <div className="w-full max-w-md space-y-8">
     <div className="text-center space-y-4">
       <div className="flex justify-center">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 shadow-lg">
-          <User className="w-8 h-8 text-white" />
+        <div className=" rounded-2xl  shadow-lg">
+          <img src={logo} alt="logo" className="w-12 h-12 rounded" />
         </div>
       </div>
       <div>

@@ -11,6 +11,8 @@ import {
   AlertCircle,
   Code2,
   MessageSquare,
+  Trash2,
+  X,
 } from "lucide-react";
 
 const truncateLongArrays = (data, limit = 10) => {
@@ -43,6 +45,7 @@ const Analytics = () => {
   const [chatHistory, setChatHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const navigate = useNavigate();
   const chatWindowRef = useRef(null);
   const platforms = [
@@ -64,10 +67,62 @@ const Analytics = () => {
     },
   ];
 
+  const API = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
   }, []);
+
+  const getPastChats = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setIsLoggedIn(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/pastChats`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const formattedHistory = [];
+        (data.history || []).forEach((line) => {
+          if (line.startsWith("User: ") || line.startsWith("AI: ")) {
+            const isUser = line.startsWith("User: ");
+            const type = isUser ? "user" : "bot";
+            const content = isUser
+              ? line.substring("User: ".length)
+              : line.substring("AI: ".length);
+            formattedHistory.push({ type, content });
+          } else if (formattedHistory.length > 0) {
+            formattedHistory[formattedHistory.length - 1].content +=
+              "\n" + line;
+          }
+        });
+        setChatHistory(formattedHistory);
+      } else {
+        setIsLoggedIn(false);
+        localStorage.removeItem("token");
+      }
+    } catch (err) {
+      console.error("Error fetching past chats:", err);
+      setError("Failed to load past chats. Please try again later.");
+    }
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      getPastChats();
+    } else {
+      setChatHistory([]);
+    }
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (chatWindowRef.current) {
@@ -82,7 +137,7 @@ const Analytics = () => {
       return;
     }
 
-    const res = await fetch("https://analyzer-3.onrender.com/setChats", {
+    const res = await fetch(`${API}/setChats`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -158,7 +213,7 @@ const Analytics = () => {
     try {
       const promises = selectedPlatforms.map((platformId) => {
         const username = usernames[platformId];
-        return fetch(`https://analyzer-3.onrender.com/${platformId}/${username}`)
+        return fetch(`${API}/${platformId}/${username}`)
           .then((response) => {
             if (!response.ok) {
               throw new Error(
@@ -185,9 +240,7 @@ const Analytics = () => {
         )
         .join("\n\n---\n\n");
 
-      const prompt = `Analyze my competitive programming performance based on the following summarized data. Provide insights about my coding skills, problem-solving patterns, strengths, and areas for improvement. Give short responses. For GFG, "maxStreak" is the global maximum streak, while my actual maximum streak is named "currentStreak". At last, give a short summary. Format your response using Markdown with headings, lists, and **bold text** for clarity.
-
-${profileDataString}`;
+      const prompt = `${profileDataString}`;
 
       const aiResponse = await sendChat(prompt);
       const userDisplayMessage = `Analytics request for: ${selectedPlatforms
@@ -249,6 +302,39 @@ ${profileDataString}`;
     }
   };
 
+  const handleClearChats = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setError("You are not logged in.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch(`${API}/clearChats`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        setChatHistory([]);
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to clear chats.");
+      }
+    } catch (err) {
+      console.error("Error clearing chats:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+      setShowClearConfirm(false);
+    }
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -259,288 +345,330 @@ ${profileDataString}`;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      <Navbar
-        isLanding={false}
-        isLoggedIn={isLoggedIn}
-        onLogout={handleLogout}
-        showAuth={true}
-      />
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+        <Navbar
+          isLanding={false}
+          isLoggedIn={isLoggedIn}
+          onLogout={handleLogout}
+          showAuth={true}
+        />
 
-      <div className="pt-24 pb-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-10">
-            <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent mb-4">
-              AI Analytics Hub
-            </h1>
-            <p className="text-lg text-slate-300 max-w-3xl mx-auto">
-              Get AI-powered insights on your coding journey or just have a
-              casual chat.
-            </p>
-          </div>
-
-          <div className="flex justify-center mb-8">
-            <div className="bg-slate-800/60 backdrop-blur-lg rounded-full p-1.5 border border-slate-700/50 flex space-x-2">
-              <button
-                onClick={() => setActiveMode("analytics")}
-                className={`flex items-center space-x-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
-                  activeMode === "analytics"
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
-                    : "text-slate-300 hover:bg-slate-700/50"
-                }`}
-              >
-                <BarChart3 className="w-5 h-5" />
-                <span>Analytics</span>
-              </button>
-              <button
-                onClick={() => setActiveMode("chat")}
-                className={`flex items-center space-x-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
-                  activeMode === "chat"
-                    ? "bg-purple-600 text-white shadow-lg shadow-purple-500/30"
-                    : "text-slate-300 hover:bg-slate-700/50"
-                }`}
-              >
-                <MessageSquare className="w-5 h-5" />
-                <span>Chat</span>
-              </button>
+        <div className="pt-24 pb-12">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10">
+              <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 bg-clip-text text-transparent mb-4">
+                AI Analytics Hub
+              </h1>
+              <p className="text-lg text-slate-300 max-w-3xl mx-auto">
+                Get AI-powered insights on your coding journey or just have a
+                casual chat.
+              </p>
             </div>
-          </div>
 
-          <div className="grid lg:grid-cols-2 gap-8 items-start">
-            <div className="bg-slate-800/40 backdrop-blur-lg rounded-2xl border border-slate-700/50 p-6 shadow-2xl">
-              {activeMode === "analytics" ? (
-                <div className="space-y-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                      <Code2 className="w-6 h-6 text-white" />
+            <div className="flex justify-center mb-8">
+              <div className="bg-slate-800/60 backdrop-blur-lg rounded-full p-1.5 border border-slate-700/50 flex space-x-2">
+                <button
+                  onClick={() => setActiveMode("analytics")}
+                  className={`flex items-center space-x-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
+                    activeMode === "analytics"
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                      : "text-slate-300 hover:bg-slate-700/50"
+                  }`}
+                >
+                  <BarChart3 className="w-5 h-5" />
+                  <span>Analytics</span>
+                </button>
+                <button
+                  onClick={() => setActiveMode("chat")}
+                  className={`flex items-center space-x-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
+                    activeMode === "chat"
+                      ? "bg-purple-600 text-white shadow-lg shadow-purple-500/30"
+                      : "text-slate-300 hover:bg-slate-700/50"
+                  }`}
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  <span>Chat</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-8 items-start">
+              <div className="bg-slate-800/40 backdrop-blur-lg rounded-2xl border border-slate-700/50 p-6 shadow-2xl">
+                {activeMode === "analytics" ? (
+                  <div className="space-y-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                        <Code2 className="w-6 h-6 text-white" />
+                      </div>
+                      <h2 className="text-2xl font-bold text-white">
+                        Platform Analytics
+                      </h2>
                     </div>
-                    <h2 className="text-2xl font-bold text-white">
-                      Platform Analytics
-                    </h2>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Select Platforms
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {platforms.map((platform) => (
-                        <button
-                          key={platform.id}
-                          onClick={() => handlePlatformToggle(platform.id)}
-                          className={`p-3 rounded-xl border-2 transition-all duration-300 flex items-center justify-center space-x-2 font-medium text-xs sm:text-sm ${
-                            selectedPlatforms.includes(platform.id)
-                              ? `bg-gradient-to-r ${platform.color} border-transparent text-white shadow-lg`
-                              : "border-slate-600 text-slate-300 hover:border-slate-500 hover:bg-slate-700/30"
-                          }`}
-                        >
-                          {selectedPlatforms.includes(platform.id) && (
-                            <CheckCircle2 className="w-4 h-4" />
-                          )}
-                          <span>{platform.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {selectedPlatforms.length > 0 && (
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-2">
-                        Enter Usernames
+                        Select Platforms
                       </label>
-                      <div className="space-y-4">
-                        {selectedPlatforms.map((platformId) => (
-                          <input
-                            key={platformId}
-                            type="text"
-                            value={usernames[platformId]}
-                            onChange={(e) =>
-                              handleUsernameChange(platformId, e.target.value)
-                            }
-                            placeholder={`Your ${
-                              platforms.find((p) => p.id === platformId).name
-                            } username`}
-                            className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                          />
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {platforms.map((platform) => (
+                          <button
+                            key={platform.id}
+                            onClick={() => handlePlatformToggle(platform.id)}
+                            className={`p-3 rounded-xl border-2 transition-all duration-300 flex items-center justify-center space-x-2 font-medium text-xs sm:text-sm ${
+                              selectedPlatforms.includes(platform.id)
+                                ? `bg-gradient-to-r ${platform.color} border-transparent text-white shadow-lg`
+                                : "border-slate-600 text-slate-300 hover:border-slate-500 hover:bg-slate-700/30"
+                            }`}
+                          >
+                            {selectedPlatforms.includes(platform.id) && (
+                              <CheckCircle2 className="w-4 h-4" />
+                            )}
+                            <span>{platform.name}</span>
+                          </button>
                         ))}
                       </div>
                     </div>
-                  )}
-                  <button
-                    onClick={handleAnalyticsSubmit}
-                    disabled={isLoading || !isLoggedIn}
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold py-3 px-6 rounded-lg hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center space-x-2 shadow-lg hover:shadow-blue-500/50"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Analyzing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <BarChart3 className="w-5 h-5" />
-                        <span>Get Analytics</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                      <MessageCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-white">AI Chat</h2>
-                  </div>
-                  <textarea
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Ask me anything about programming..."
-                    className="w-full h-36 px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition resize-none"
-                  />
-                  <button
-                    onClick={handleChatSubmit}
-                    disabled={isLoading || !isLoggedIn}
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center space-x-2 shadow-lg hover:shadow-purple-500/50"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Sending...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-5 h-5" />
-                        <span>Send Message</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-              {error && (
-                <div className="mt-4 p-3 bg-red-900/50 border border-red-500/50 rounded-lg flex items-center space-x-2 text-red-300 text-sm">
-                  <AlertCircle className="w-5 h-5" />
-                  <span>{error}</span>
-                </div>
-              )}
-              {!isLoggedIn && (
-                <div className="mt-4 p-3 bg-blue-900/50 border border-blue-500/50 rounded-lg text-center text-blue-300 text-sm">
-                  Please log in to use AI features.
-                </div>
-              )}
-            </div>
-
-            <div className="bg-slate-800/40 backdrop-blur-lg rounded-2xl border border-slate-700/50 shadow-2xl h-[80vh] flex flex-col">
-              <div className="p-4 border-b border-slate-700 flex-shrink-0">
-                <h3 className="text-lg font-bold text-white flex items-center space-x-2">
-                  <MessageCircle className="w-5 h-5" />
-                  <span>Conversation</span>
-                </h3>
-              </div>
-              <div
-                ref={chatWindowRef}
-                className="flex-grow overflow-y-auto p-4 space-y-6"
-              >
-                {chatHistory.length === 0 ? (
-                  <div className="flex flex-col justify-center items-center h-full text-slate-500">
-                    <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p>Your conversation will appear here.</p>
-                  </div>
-                ) : (
-                  chatHistory.map((message, index) => (
-                    <div
-                      key={index}
-                      className={`flex items-start gap-3 ${
-                        message.type === "user"
-                          ? "justify-end"
-                          : "justify-start"
-                      }`}
-                    >
-                      {message.type === "bot" && (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex-shrink-0 self-start"></div>
-                      )}
-                      <div
-                        className={`max-w-[85%] p-3 rounded-xl ${
-                          message.type === "user"
-                            ? "bg-blue-600 text-white rounded-br-none"
-                            : "bg-slate-700 text-slate-200 rounded-bl-none"
-                        }`}
-                      >
-                        <ReactMarkdown
-                          components={{
-                            h1: ({ node, ...props }) => (
-                              <h1
-                                className="text-xl font-bold my-3"
-                                {...props}
-                              />
-                            ),
-                            h2: ({ node, ...props }) => (
-                              <h2
-                                className="text-lg font-semibold my-2"
-                                {...props}
-                              />
-                            ),
-                            h3: ({ node, ...props }) => (
-                              <h3
-                                className="text-md font-semibold my-2"
-                                {...props}
-                              />
-                            ),
-                            p: ({ node, ...props }) => (
-                              <p className="my-2" {...props} />
-                            ),
-                            ul: ({ node, ...props }) => (
-                              <ul
-                                className="list-disc list-inside my-2"
-                                {...props}
-                              />
-                            ),
-                            ol: ({ node, ...props }) => (
-                              <ol
-                                className="list-decimal list-inside my-2"
-                                {...props}
-                              />
-                            ),
-                            li: ({ node, ...props }) => (
-                              <li className="my-1" {...props} />
-                            ),
-                            code: ({ node, inline, ...props }) =>
-                              inline ? (
-                                <code
-                                  className="bg-slate-800 px-1 py-0.5 rounded text-sm"
-                                  {...props}
-                                />
-                              ) : (
-                                <pre className="bg-slate-800 p-2 rounded my-2 overflow-x-auto">
-                                  <code {...props} />
-                                </pre>
-                              ),
-                          }}
-                        >
-                          {message.content}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  ))
-                )}
-                {isLoading &&
-                  chatHistory.length > 0 &&
-                  chatHistory[chatHistory.length - 1].type === "user" && (
-                    <div className="flex items-start gap-3 justify-start">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex-shrink-0 self-start"></div>
-                      <div className="bg-slate-700 p-3 rounded-xl rounded-bl-none">
-                        <div className="flex items-center space-x-2 text-slate-400">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Good things take time...</span>
+                    {selectedPlatforms.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                          Enter Usernames
+                        </label>
+                        <div className="space-y-4">
+                          {selectedPlatforms.map((platformId) => (
+                            <input
+                              key={platformId}
+                              type="text"
+                              value={usernames[platformId]}
+                              onChange={(e) =>
+                                handleUsernameChange(platformId, e.target.value)
+                              }
+                              placeholder={`Your ${
+                                platforms.find((p) => p.id === platformId).name
+                              } username`}
+                              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                            />
+                          ))}
                         </div>
                       </div>
+                    )}
+                    <button
+                      onClick={handleAnalyticsSubmit}
+                      disabled={isLoading || !isLoggedIn}
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold py-3 px-6 rounded-lg hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center space-x-2 shadow-lg hover:shadow-blue-500/50"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>(It takes some time hold up) Analyzing... </span>
+                        </>
+                      ) : (
+                        <>
+                          <BarChart3 className="w-5 h-5" />
+                          <span>Get Analytics</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <MessageCircle className="w-6 h-6 text-white" />
+                      </div>
+                      <h2 className="text-2xl font-bold text-white">AI Chat</h2>
                     </div>
+                    <textarea
+                      value={chatMessage}
+                      onChange={(e) => setChatMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Ask me anything about programming..."
+                      className="w-full h-36 px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition resize-none"
+                    />
+                    <button
+                      onClick={handleChatSubmit}
+                      disabled={isLoading || !isLoggedIn}
+                      className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center space-x-2 shadow-lg hover:shadow-purple-500/50"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>Sending...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-5 h-5" />
+                          <span>Send Message</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+                {error && (
+                  <div className="mt-4 p-3 bg-red-900/50 border border-red-500/50 rounded-lg flex items-center space-x-2 text-red-300 text-sm">
+                    <AlertCircle className="w-5 h-5" />
+                    <span>{error}</span>
+                  </div>
+                )}
+                {!isLoggedIn && (
+                  <div className="mt-4 p-3 bg-blue-900/50 border border-blue-500/50 rounded-lg text-center text-blue-300 text-sm">
+                    Please log in to use AI features.
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-slate-800/40 backdrop-blur-lg rounded-2xl border border-slate-700/50 shadow-2xl h-[80vh] flex flex-col">
+                <div className="p-4 border-b border-slate-700 flex-shrink-0 flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-white flex items-center space-x-2">
+                    <MessageCircle className="w-5 h-5" />
+                    <span>Conversation</span>
+                  </h3>
+                  {chatHistory.length > 0 && (
+                    <button
+                      onClick={() => setShowClearConfirm(true)}
+                      className="text-slate-400 hover:text-red-400 transition-colors"
+                      title="Clear chat history"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   )}
+                </div>
+                <div
+                  ref={chatWindowRef}
+                  className="flex-grow overflow-y-auto p-4 space-y-6"
+                >
+                  {chatHistory.length === 0 ? (
+                    <div className="flex flex-col justify-center items-center h-full text-slate-500">
+                      <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p>Your conversation will appear here.</p>
+                    </div>
+                  ) : (
+                    chatHistory.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-start gap-3 ${
+                          message.type === "user"
+                            ? "justify-end"
+                            : "justify-start"
+                        }`}
+                      >
+                        {message.type === "bot" && (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex-shrink-0 self-start"></div>
+                        )}
+                        <div
+                          className={`max-w-[85%] p-3 rounded-xl ${
+                            message.type === "user"
+                              ? "bg-blue-600 text-white rounded-br-none"
+                              : "bg-slate-700 text-slate-200 rounded-bl-none"
+                          }`}
+                        >
+                          <ReactMarkdown
+                            components={{
+                              h1: ({ node, ...props }) => (
+                                <h1
+                                  className="text-xl font-bold my-3"
+                                  {...props}
+                                />
+                              ),
+                              h2: ({ node, ...props }) => (
+                                <h2
+                                  className="text-lg font-semibold my-2"
+                                  {...props}
+                                />
+                              ),
+                              h3: ({ node, ...props }) => (
+                                <h3
+                                  className="text-md font-semibold my-2"
+                                  {...props}
+                                />
+                              ),
+                              p: ({ node, ...props }) => (
+                                <p className="my-2" {...props} />
+                              ),
+                              ul: ({ node, ...props }) => (
+                                <ul
+                                  className="list-disc list-inside my-2"
+                                  {...props}
+                                />
+                              ),
+                              ol: ({ node, ...props }) => (
+                                <ol
+                                  className="list-decimal list-inside my-2"
+                                  {...props}
+                                />
+                              ),
+                              li: ({ node, ...props }) => (
+                                <li className="my-1" {...props} />
+                              ),
+                              code: ({ node, inline, ...props }) =>
+                                inline ? (
+                                  <code
+                                    className="bg-slate-800 px-1 py-0.5 rounded text-sm"
+                                    {...props}
+                                  />
+                                ) : (
+                                  <pre className="bg-slate-800 p-2 rounded my-2 overflow-x-auto">
+                                    <code {...props} />
+                                  </pre>
+                                ),
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {isLoading &&
+                    chatHistory.length > 0 &&
+                    chatHistory[chatHistory.length - 1].type === "user" && (
+                      <div className="flex items-start gap-3 justify-start">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex-shrink-0 self-start"></div>
+                        <div className="bg-slate-700 p-3 rounded-xl rounded-bl-none">
+                          <div className="flex items-center space-x-2 text-slate-400">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm">
+                              Good things take time...
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-sm w-full shadow-2xl m-4">
+            <h3 className="text-xl font-bold text-white mb-4">Are you sure?</h3>
+            <p className="text-slate-300 mb-6">
+              This will permanently delete your entire chat history. This action
+              cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="px-5 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearChats}
+                className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "Confirm & Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
