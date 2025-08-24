@@ -11,8 +11,8 @@
 - Pulls user data from **LeetCode**, **Codeforces**, **AtCoder**, and **GeeksforGeeks** APIs.  
 - **Caches** responses for faster access and reduced API calls.  
 
-### 🤖 AI Chat Assistant (Google Gemini)  
-- Context-aware conversations using saved chat history.  
+### 🤖 AI Chat Analyzer  
+- Context-aware conversations.  
 
 ### 🔐 Authentication & User Management  
 - **JWT-based authentication** with cookie or header token support.  
