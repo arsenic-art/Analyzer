@@ -415,6 +415,7 @@ function LeetCodeProfile({ data }) {
     contestHistory,
     globalProblemCounts,
   } = data;
+  
   const totalEasyProblems = globalProblemCounts?.easy || 1;
   const totalMediumProblems = globalProblemCounts?.medium || 1;
   const totalHardProblems = globalProblemCounts?.hard || 1;
@@ -641,7 +642,7 @@ function LeetCodeProfile({ data }) {
               </div>
 
               <div className="space-y-4">
-                {contestHistory.slice(0, 5).map((contest, idx) => (
+                {contestHistory.slice(-5).reverse().map((contest, idx) => (
                   <div
                     key={idx}
                     className="bg-slate-700/30 rounded-lg p-4 hover:bg-slate-700/50 transition-colors"
@@ -1314,7 +1315,7 @@ function AtCoderProfile({ data }) {
               </div>
 
               <div className="space-y-4">
-                {contests.slice(0, 5).map((contest, idx) => (
+                {contests.slice(-5).reverse().map((contest, idx) => (
                   <div
                     key={idx}
                     className="bg-slate-700/30 rounded-lg p-4 hover:bg-slate-700/50 transition-colors"
@@ -1456,7 +1457,7 @@ function AtCoderProfile({ data }) {
                   <div className="text-sm text-slate-400 mb-2">
                     Recent Rating Changes:
                   </div>
-                  {contests.slice(0, 5).map((contest, idx) => (
+                  {contests.slice(-5).reverse().map((contest, idx) => (
                     <div
                       key={idx}
                       className="flex items-center justify-between py-3 px-4 bg-slate-700/20 rounded-lg"
