@@ -1,5 +1,4 @@
 const express = require("express");
-const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -16,6 +15,7 @@ const { gfg } = require("./controllers/gfg");
 const app = express();
 app.use(cookieParser());
 
+const cors = require("cors");
 const allowedOrigins = [
   "https://analyzer-piyushsharma.vercel.app",
   /^https:\/\/.*\.vercel\.app$/  
