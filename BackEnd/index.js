@@ -40,6 +40,10 @@ const generateToken = (email) => {
   return jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
+app.get("/health", (req, res) => {
+  res.send("Welcome to the Analyzer API");
+});
+
 app.get("/leetcode/:id", leetcode);
 app.get("/codeforces/:id", codeforces);
 app.get("/atcoder/:id", atcoder);
